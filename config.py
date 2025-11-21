@@ -1,17 +1,19 @@
 # config.py
 
-API_KEY = "SUA_API_KEY_AQUI"
-API_SECRET = "SUA_API_SECRET_AQUI"
+# "API" fictícia por enquanto (modo paper trading)
+API_KEY = "DEMO_KEY"
+API_SECRET = "DEMO_SECRET"
 
 # Ativo e parâmetros
-SYMBOL = "BTCUSDT"        # exemplo
-TIMEFRAME_MINUTES = 5     # timeframe das análises
+SYMBOL = "BTCUSDT"        # só um nome simbólico no modo demo
+TIMEFRAME_MINUTES = 5     # timeframe lógico da estratégia
 
 # Gestão de risco
-DAILY_TARGET = 50.0       # meta de lucro diário em moeda da conta
-DAILY_STOP_LOSS = -30.0   # stop loss diário (valor negativo)
+DAILY_TARGET = 50.0       # meta de lucro diária (ex.: +50)
+DAILY_STOP_LOSS = -30.0   # stop diário (ex.: -30)
 
-POSITION_SIZE = 0.001     # tamanho padrão da posição (ex: 0.001 BTC)
+# Tamanho padrão da posição (em unidades do ativo)
+POSITION_SIZE = 0.01
 
 # Bot
-LOOP_SLEEP_SECONDS = 60   # intervalo entre checagens
+LOOP_SLEEP_SECONDS = 5    # segundos entre cada ciclo de análise (aumenta depois se quiser)
