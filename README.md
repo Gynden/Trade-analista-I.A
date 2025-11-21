@@ -1,0 +1,1 @@
+# Trade-analista-I.A
