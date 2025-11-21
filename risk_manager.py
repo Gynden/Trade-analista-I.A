@@ -1,6 +1,7 @@
 # risk_manager.py
 
-from datetime import datetime, date
+from datetime import date
+
 
 class RiskManager:
     def __init__(self, daily_target: float, daily_stop_loss: float):
@@ -13,26 +14,26 @@ class RiskManager:
         self.starting_equity = starting_equity
         self.current_pnl = 0.0
         self.trading_allowed = True
+        print(f"[RISK] Novo dia iniciado. Equity inicial: {self.starting_equity}")
 
     def update_pnl(self, current_equity: float):
         if self.starting_equity is None:
             self.starting_equity = current_equity
-            self.current_pnl = 0.0
-            return
 
         self.current_pnl = current_equity - self.starting_equity
 
-        # Checar meta e stop
+        print(f"[RISK] PnL atual do dia: {self.current_pnl:.2f}")
+
         if self.current_pnl >= self.daily_target:
             self.trading_allowed = False
-            print(f"[RISK] Meta diária atingida: +{self.current_pnl:.2f}")
+            print(f"[RISK] ✅ Meta diária atingida (+{self.current_pnl:.2f}). Parando operações.")
         elif self.current_pnl <= self.daily_stop_loss:
             self.trading_allowed = False
-            print(f"[RISK] Stop loss diário atingido: {self.current_pnl:.2f}")
+            print(f"[RISK] ⛔ Stop loss diário atingido ({self.current_pnl:.2f}). Parando operações.")
 
     def can_trade(self) -> bool:
         # Se virou o dia, reseta
         if date.today() != self.current_day:
-            print("[RISK] Novo dia detectado, resetando PnL.")
-            self.reset_for_new_day()
+            print("[RISK] Mudança de dia detectada, resetando controles.")
+            self.reset_for_new_day(starting_equity=self.starting_equity + self.current_pnl)
         return self.trading_allowed
