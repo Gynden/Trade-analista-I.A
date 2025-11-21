@@ -18,6 +18,8 @@ class TradingBot:
         self.broker = BrokerClient(API_KEY, API_SECRET)
         self.risk_manager = RiskManager(DAILY_TARGET, DAILY_STOP_LOSS)
         self.is_running = False
+        self.last_equity = None
+        self.last_pnl = None
 
     def start(self):
         print("[BOT] Iniciando robô em modo DEMO (paper trading).")
@@ -27,7 +29,7 @@ class TradingBot:
         self.run_loop()
 
     def stop(self):
-        print("[BOT] Robô parado.")
+        print("[BOT] Robô parado (stop solicitado).")
         self.is_running = False
 
     def run_loop(self):
@@ -35,7 +37,10 @@ class TradingBot:
             try:
                 # Atualiza equity e PnL
                 current_equity = self.broker.get_balance()
+                self.last_equity = current_equity
+
                 self.risk_manager.update_pnl(current_equity)
+                self.last_pnl = self.risk_manager.current_pnl
 
                 if not self.risk_manager.can_trade():
                     print("[BOT] Operações bloqueadas (meta/stop). Encerrando loop.")
@@ -62,8 +67,3 @@ class TradingBot:
                 print(f"[ERRO] {e}")
 
             time.sleep(LOOP_SLEEP_SECONDS)
-
-
-if __name__ == "__main__":
-    bot = TradingBot()
-    bot.start()
