@@ -28,9 +28,6 @@ class BrokerClient:
         self._price = 100.0               # preço inicial fictício
         self._position: Position | None = None
 
-        # Para gerar candles
-        self._last_candle_time = datetime.utcnow()
-
     # --------- Funções de estado ---------
 
     def _update_price(self):
@@ -69,13 +66,11 @@ class BrokerClient:
         """
         candles = []
         now = datetime.utcnow()
-        # recomeça a timeline dos candles a partir de agora
         start_time = now - timedelta(minutes=minutes * limit)
         t = start_time
         price = self._price
 
         for _ in range(limit):
-            # random walk por candle
             move = random.uniform(-1.5, 1.5)
             open_price = price
             close_price = max(1.0, price + move)
@@ -93,9 +88,7 @@ class BrokerClient:
             price = close_price
             t += timedelta(minutes=minutes)
 
-        # atualiza o preço interno para o último close
         self._price = price
-        self._last_candle_time = t
         return candles
 
     # --------- Execução de ordens ---------
@@ -103,9 +96,10 @@ class BrokerClient:
     def _close_position_if_exists(self):
         """
         Fecha posição atual, se existir, realizando o PnL.
+        Retorna o PnL realizado ou None.
         """
         if not self._position:
-            return
+            return None
 
         price = self._price
         pnl = 0.0
@@ -116,22 +110,25 @@ class BrokerClient:
             pnl = (self._position.entry_price - price) * self._position.qty
 
         self._cash_balance += pnl
-        print(f"[BROKER] Posição fechada | side={self._position.side} qty={self._position.qty} "
-              f"entry={self._position.entry_price:.2f} exit={price:.2f} pnl={pnl:.2f}")
+
+        print(
+            f"[BROKER] Posição fechada | side={self._position.side} "
+            f"qty={self._position.qty} entry={self._position.entry_price:.2f} "
+            f"exit={price:.2f} pnl={pnl:.2f}"
+        )
 
         self._position = None
+        return pnl
 
     def market_buy(self, symbol: str, qty: float) -> dict:
         """
         Simula uma ordem de compra a mercado.
-        Se houver SHORT aberta, fecha antes.
+        Fecha qualquer posição aberta antes de abrir uma nova.
         """
         self._update_price()
         price = self._price
 
-        # se tiver short, fecha
-        if self._position and self._position.side == "SHORT":
-            self._close_position_if_exists()
+        closed_pnl = self._close_position_if_exists()
 
         cost = qty * price
         if cost > self._cash_balance:
@@ -144,34 +141,33 @@ class BrokerClient:
         print(f"[BROKER] COMPRA executada | {symbol} qty={qty} price={price:.2f}")
         return {
             "status": "filled",
-            "side": "BUY",
+            "order_type": "BUY",
             "symbol": symbol,
             "qty": qty,
             "price": price,
-            "time": datetime.utcnow().isoformat()
+            "time": datetime.utcnow().isoformat(),
+            "closed_pnl": closed_pnl,
         }
 
     def market_sell(self, symbol: str, qty: float) -> dict:
         """
         Simula uma ordem de venda a mercado.
-        Se houver LONG aberta, fecha antes.
+        Fecha qualquer posição aberta antes de abrir uma nova.
         """
         self._update_price()
         price = self._price
 
-        # se tiver long, fecha
-        if self._position and self._position.side == "LONG":
-            self._close_position_if_exists()
+        closed_pnl = self._close_position_if_exists()
 
-        # em modo demo vamos permitir abrir short sem margem por simplicidade
         self._position = Position(symbol=symbol, qty=qty, side="SHORT", entry_price=price)
 
         print(f"[BROKER] VENDA executada | {symbol} qty={qty} price={price:.2f}")
         return {
             "status": "filled",
-            "side": "SELL",
+            "order_type": "SELL",
             "symbol": symbol,
             "qty": qty,
             "price": price,
-            "time": datetime.utcnow().isoformat()
+            "time": datetime.utcnow().isoformat(),
+            "closed_pnl": closed_pnl,
         }
