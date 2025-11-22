@@ -1,95 +1,516 @@
-function renderHistory(trades) {
-  if (!trades || trades.length === 0) {
-    historyEmptyEl.classList.remove("hidden");
-    historyListEl.classList.add("hidden");
-    historyListEl.innerHTML = "";
-    return;
-  }
+<!DOCTYPE html>
+<html lang="pt-BR">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Trade Analista IA - Bot Demo</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <script src="https://cdn.tailwindcss.com"></script>
+  </head>
+  <body class="min-h-screen bg-slate-950 text-slate-50">
+    <!-- Background decorativo -->
+    <div
+      class="pointer-events-none fixed inset-0 opacity-40"
+      aria-hidden="true"
+    >
+      <div
+        class="absolute -top-40 -left-40 w-80 h-80 bg-emerald-500/10 blur-3xl rounded-full"
+      ></div>
+      <div
+        class="absolute -bottom-40 -right-40 w-80 h-80 bg-cyan-500/10 blur-3xl rounded-full"
+      ></div>
+    </div>
 
-  historyEmptyEl.classList.add("hidden");
-  historyListEl.classList.remove("hidden");
-  historyListEl.innerHTML = "";
-
-  trades
-    .slice()
-    .reverse()
-    .forEach((t) => {
-      const imgUrl =
-        assetImages[t.symbol] ||
-        "https://upload.wikimedia.org/wikipedia/commons/3/3f/Placeholder_view_vector.svg";
-
-      const sideBadgeClass =
-        t.side === "BUY"
-          ? "bg-emerald-500/10 text-emerald-300 border-emerald-400/40"
-          : "bg-rose-500/10 text-rose-300 border-rose-400/40";
-
-      // 🔹 valor de entrada = qty * price
-      const hasEntry = t.qty != null && t.price != null;
-      const entryValue = hasEntry ? t.qty * t.price : null;
-      const entryValueText = entryValue != null ? formatBRL(entryValue) : "—";
-
-      const pnlValue = t.closed_pnl ?? 0;
-      const pnlText = formatBRL(Math.abs(pnlValue));
-      const isWin = pnlValue > 0;
-      const isLoss = pnlValue < 0;
-
-      const pnlLabel = isWin
-        ? "Lucro"
-        : isLoss
-        ? "Prejuízo"
-        : "Resultado";
-
-      const pnlColor = isWin
-        ? "text-emerald-400"
-        : isLoss
-        ? "text-rose-400"
-        : "text-slate-400";
-
-      const row = document.createElement("div");
-      row.className =
-        "flex items-center justify-between gap-3 bg-slate-900/80 border border-slate-800 rounded-xl px-3 py-2";
-
-      row.innerHTML = `
+    <div class="relative max-w-6xl mx-auto px-4 py-6 md:py-10">
+      <!-- TOPO / NAVBAR -->
+      <header
+        class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8"
+      >
         <div class="flex items-center gap-3">
-          <div class="w-8 h-8 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center">
-            <img src="${imgUrl}" alt="${t.symbol}" class="w-full h-full object-contain" />
+          <div
+            class="w-12 h-12 rounded-2xl bg-gradient-to-tr from-emerald-400 to-cyan-500 flex items-center justify-center shadow-lg shadow-emerald-500/25"
+          >
+            <span class="text-2xl">🤖</span>
           </div>
           <div>
             <div class="flex items-center gap-2">
-              <span class="text-xs font-semibold">${t.symbol}</span>
-              <span class="px-2 py-0.5 rounded-full text-[10px] border ${sideBadgeClass}">
-                ${t.side === "BUY" ? "COMPRA" : "VENDA"}
+              <h1 class="text-2xl font-semibold tracking-tight">
+                Trade Analista IA
+              </h1>
+              <span
+                class="px-2 py-0.5 rounded-full text-[10px] font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-400/40"
+              >
+                Modo demo
               </span>
-              ${
-                t.strategy
-                  ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-sky-500/10 text-sky-300 border border-sky-400/40">
-                       ${t.strategy}
-                     </span>`
-                  : ""
-              }
             </div>
-            <p class="text-[11px] text-slate-400">
-              Qty: <span class="font-medium text-slate-200">${t.qty}</span> ·
-              Preço: <span class="font-medium text-slate-200">${t.price?.toFixed(
-                2
-              )}</span>
-            </p>
-            <p class="text-[11px] text-slate-400">
-              Valor de entrada:
-              <span class="font-medium text-slate-200">${entryValueText}</span>
+            <p class="text-xs text-slate-400">
+              Bot de trade automático com meta diária e stop loss inteligente
             </p>
           </div>
         </div>
-        <div class="text-right">
-          <p class="text-[11px] text-slate-500">
-            ${t.time ? new Date(t.time).toLocaleTimeString("pt-BR") : ""}
-          </p>
-          <p class="text-[11px] ${pnlColor}">
-            ${pnlLabel}: ${pnlText}
-          </p>
-        </div>
-      `;
 
-      historyListEl.appendChild(row);
-    });
-}
+        <div class="flex items-center gap-3">
+          <span
+            id="status-badge"
+            class="px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700"
+          >
+            Parado
+          </span>
+          <button
+            id="start-btn"
+            class="px-4 py-2 rounded-xl text-sm font-medium bg-emerald-500 hover:bg-emerald-400 text-slate-950 shadow-md shadow-emerald-500/30 transition"
+          >
+            Iniciar Bot
+          </button>
+          <button
+            id="stop-btn"
+            class="px-4 py-2 rounded-xl text-sm font-medium bg-rose-500/15 hover:bg-rose-500/35 text-rose-200 border border-rose-400/40 transition"
+          >
+            Parar Bot
+          </button>
+        </div>
+      </header>
+
+      <!-- GRID PRINCIPAL -->
+      <main class="space-y-6">
+        <!-- CARDS DE MÉTRICA -->
+        <section class="grid md:grid-cols-4 gap-4">
+          <!-- Equity -->
+          <div
+            class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between"
+          >
+            <div>
+              <p class="text-xs text-slate-400 mb-1">Equity atual (demo)</p>
+              <p id="equity" class="text-2xl font-semibold">R$ 0,00</p>
+            </div>
+            <p class="mt-2 text-[11px] text-slate-500">
+              Saldo total simulado considerando todas as operações.
+            </p>
+          </div>
+
+          <!-- PnL do dia -->
+          <div
+            class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between"
+          >
+            <div>
+              <p class="text-xs text-slate-400 mb-1">PnL do dia (realizado)</p>
+              <p id="pnl" class="text-2xl font-semibold">R$ 0,00</p>
+            </div>
+            <p class="mt-2 text-[11px] text-slate-500">
+              Soma de lucros e prejuízos das operações já encerradas hoje.
+            </p>
+          </div>
+
+          <!-- Meta diária (com input) -->
+          <div
+            class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between"
+          >
+            <div>
+              <p class="text-xs text-slate-400 mb-1">Meta diária</p>
+              <p id="target" class="text-lg font-semibold">R$ 0,00</p>
+              <p id="target-pct" class="text-[11px] text-slate-400 mb-2">
+                0% da banca
+              </p>
+              <input
+                id="target-input"
+                type="text"
+                inputmode="decimal"
+                placeholder="Ex: 50 ou 50,00"
+                class="mt-1 w-full bg-slate-950/60 border border-slate-700 rounded-lg px-2 py-1 text-xs text-slate-100 placeholder-slate-500 focus:outline-none focus:ring-1 focus:ring-emerald-400"
+              />
+            </div>
+            <p class="mt-2 text-[10px] text-slate-500">
+              Deixe em branco para usar meta automática (% da banca).
+            </p>
+          </div>
+
+          <!-- Stop diário -->
+          <div
+            class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col justify-between"
+          >
+            <div>
+              <p class="text-xs text-slate-400 mb-1">Stop diário (auto)</p>
+              <p id="stop" class="text-lg font-semibold">R$ 0,00</p>
+              <p id="stop-pct" class="text-[11px] text-slate-400">
+                0% da banca
+              </p>
+            </div>
+            <p class="mt-2 text-[10px] text-slate-500">
+              Calculado automaticamente com base na banca inicial do dia.
+            </p>
+          </div>
+        </section>
+
+        <!-- GRID SECUNDÁRIO: Histórico + Estratégias -->
+        <section class="grid lg:grid-cols-3 gap-4">
+          <!-- HISTÓRICO -->
+          <div
+            class="lg:col-span-2 bg-slate-900/80 border border-slate-800 rounded-2xl p-4"
+          >
+            <div class="flex items-center justify-between mb-4">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-100">
+                  Histórico de operações (demo)
+                </h2>
+                <p class="text-[11px] text-slate-400">
+                  Últimas execuções do robô em modo paper trading.
+                </p>
+              </div>
+              <span class="text-[11px] text-slate-500">
+                Atualiza automaticamente a cada 5 segundos
+              </span>
+            </div>
+
+            <div
+              id="history-empty"
+              class="text-xs text-slate-400 py-6 text-center border border-dashed border-slate-700 rounded-xl"
+            >
+              Nenhuma operação ainda. Inicie o bot para ver o histórico.
+            </div>
+
+            <div
+              id="history-list"
+              class="space-y-2 hidden max-h-80 overflow-y-auto pr-1"
+            >
+              <!-- linhas geradas via JS -->
+            </div>
+          </div>
+
+          <!-- DESEMPENHO DAS ESTRATÉGIAS -->
+          <div
+            class="bg-slate-900/80 border border-slate-800 rounded-2xl p-4 flex flex-col"
+          >
+            <div class="flex items-center justify-between mb-3">
+              <div>
+                <h2 class="text-sm font-semibold text-slate-100">
+                  Estratégias da IA
+                </h2>
+                <p class="text-[11px] text-slate-400">
+                  Placar simples por estratégia.
+                </p>
+              </div>
+            </div>
+
+            <div
+              id="strategies-empty"
+              class="text-xs text-slate-400 py-4 text-center border border-dashed border-slate-700 rounded-xl"
+            >
+              Ainda sem dados suficientes. Deixe o bot rodar um pouco.
+            </div>
+
+            <div id="strategies-list" class="space-y-2 hidden">
+              <!-- preenchido via JS -->
+            </div>
+          </div>
+        </section>
+      </main>
+    </div>
+
+    <script>
+      const statusBadge = document.getElementById("status-badge");
+      const equityEl = document.getElementById("equity");
+      const pnlEl = document.getElementById("pnl");
+      const targetEl = document.getElementById("target");
+      const stopEl = document.getElementById("stop");
+      const targetPctEl = document.getElementById("target-pct");
+      const stopPctEl = document.getElementById("stop-pct");
+      const historyEmptyEl = document.getElementById("history-empty");
+      const historyListEl = document.getElementById("history-list");
+      const strategiesEmptyEl = document.getElementById("strategies-empty");
+      const strategiesListEl = document.getElementById("strategies-list");
+      const targetInput = document.getElementById("target-input");
+
+      const startBtn = document.getElementById("start-btn");
+      const stopBtn = document.getElementById("stop-btn");
+
+      // imagens simples por símbolo
+      const assetImages = {
+        BTCUSDT:
+          "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=026",
+      };
+
+      function formatBRL(value) {
+        if (value === null || value === undefined) return "R$ 0,00";
+        return value.toLocaleString("pt-BR", {
+          style: "currency",
+          currency: "BRL",
+          minimumFractionDigits: 2,
+        });
+      }
+
+      // interpreta entrada de meta (50, 50.00, R$ 50,00 etc.)
+      function parseBRLInput(str) {
+        if (!str) return null;
+        let s = String(str)
+          .replace(/\s/g, "")
+          .replace("R$", "")
+          .replace(/\./g, "")
+          .replace(",", ".");
+        const value = parseFloat(s);
+        return isNaN(value) ? null : value;
+      }
+
+      function updateStatusUI(data) {
+        const isRunning = data.is_running;
+
+        if (isRunning) {
+          statusBadge.textContent = "Rodando";
+          statusBadge.className =
+            "px-3 py-1 rounded-full text-xs font-medium bg-emerald-500/10 text-emerald-300 border border-emerald-400/40";
+        } else {
+          statusBadge.textContent = "Parado";
+          statusBadge.className =
+            "px-3 py-1 rounded-full text-xs font-medium bg-slate-800 text-slate-300 border border-slate-700";
+        }
+
+        if (data.last_equity !== null && data.last_equity !== undefined) {
+          equityEl.textContent = formatBRL(data.last_equity);
+        }
+
+        if (data.last_pnl !== null && data.last_pnl !== undefined) {
+          pnlEl.textContent = formatBRL(data.last_pnl);
+          pnlEl.className =
+            "text-2xl font-semibold " +
+            (data.last_pnl > 0
+              ? "text-emerald-400"
+              : data.last_pnl < 0
+              ? "text-rose-400"
+              : "text-slate-50");
+        }
+
+        if (data.daily_target !== null && data.daily_target !== undefined) {
+          targetEl.textContent = formatBRL(data.daily_target);
+        }
+        if (data.daily_stop_loss !== null && data.daily_stop_loss !== undefined) {
+          stopEl.textContent = formatBRL(data.daily_stop_loss);
+        }
+
+        if (data.target_pct !== null && data.target_pct !== undefined) {
+          targetPctEl.textContent = `${(data.target_pct * 100).toFixed(
+            2
+          )}% da banca`;
+        }
+        if (data.stop_pct !== null && data.stop_pct !== undefined) {
+          stopPctEl.textContent = `${(data.stop_pct * 100).toFixed(
+            2
+          )}% da banca`;
+        }
+
+        if (data.strategy_stats) {
+          renderStrategies(data.strategy_stats);
+        }
+      }
+
+      function renderHistory(trades) {
+        if (!trades || trades.length === 0) {
+          historyEmptyEl.classList.remove("hidden");
+          historyListEl.classList.add("hidden");
+          historyListEl.innerHTML = "";
+          return;
+        }
+
+        historyEmptyEl.classList.add("hidden");
+        historyListEl.classList.remove("hidden");
+        historyListEl.innerHTML = "";
+
+        trades
+          .slice()
+          .reverse()
+          .forEach((t) => {
+            const imgUrl =
+              assetImages[t.symbol] ||
+              "https://upload.wikimedia.org/wikipedia/commons/3/3f/Placeholder_view_vector.svg";
+
+            const sideBadgeClass =
+              t.side === "BUY"
+                ? "bg-emerald-500/10 text-emerald-300 border-emerald-400/40"
+                : "bg-rose-500/10 text-rose-300 border-rose-400/40";
+
+            // valor de entrada = qty * price
+            const hasEntry = t.qty != null && t.price != null;
+            const entryValue = hasEntry ? t.qty * t.price : null;
+            const entryValueText =
+              entryValue != null ? formatBRL(entryValue) : "—";
+
+            const pnlValue = t.closed_pnl ?? 0;
+            const pnlText = formatBRL(Math.abs(pnlValue));
+            const isWin = pnlValue > 0;
+            const isLoss = pnlValue < 0;
+
+            const pnlLabel = isWin
+              ? "Lucro"
+              : isLoss
+              ? "Prejuízo"
+              : "Resultado";
+
+            const pnlColor = isWin
+              ? "text-emerald-400"
+              : isLoss
+              ? "text-rose-400"
+              : "text-slate-400";
+
+            const row = document.createElement("div");
+            row.className =
+              "flex items-center justify-between gap-3 bg-slate-900/90 border border-slate-800 rounded-xl px-3 py-2";
+
+            row.innerHTML = `
+              <div class="flex items-center gap-3">
+                <div class="w-9 h-9 rounded-full overflow-hidden bg-slate-800 flex items-center justify-center">
+                  <img src="${imgUrl}" alt="${t.symbol}" class="w-full h-full object-contain" />
+                </div>
+                <div>
+                  <div class="flex items-center gap-2">
+                    <span class="text-xs font-semibold">${t.symbol}</span>
+                    <span class="px-2 py-0.5 rounded-full text-[10px] border ${sideBadgeClass}">
+                      ${t.side === "BUY" ? "COMPRA" : "VENDA"}
+                    </span>
+                    ${
+                      t.strategy
+                        ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-sky-500/10 text-sky-300 border border-sky-400/40">
+                             ${t.strategy}
+                           </span>`
+                        : ""
+                    }
+                  </div>
+                  <p class="text-[11px] text-slate-400">
+                    Qty: <span class="font-medium text-slate-200">${t.qty}</span> ·
+                    Preço: <span class="font-medium text-slate-200">${t.price?.toFixed(
+                      2
+                    )}</span>
+                  </p>
+                  <p class="text-[11px] text-slate-400">
+                    Valor de entrada:
+                    <span class="font-medium text-slate-200">${entryValueText}</span>
+                  </p>
+                </div>
+              </div>
+              <div class="text-right">
+                <p class="text-[11px] text-slate-500">
+                  ${t.time ? new Date(t.time).toLocaleTimeString("pt-BR") : ""}
+                </p>
+                <p class="text-[11px] ${pnlColor}">
+                  ${pnlLabel}: ${pnlText}
+                </p>
+              </div>
+            `;
+
+            historyListEl.appendChild(row);
+          });
+      }
+
+      function renderStrategies(stats) {
+        const entries = Object.entries(stats || {});
+
+        if (!entries.length) {
+          strategiesEmptyEl.classList.remove("hidden");
+          strategiesListEl.classList.add("hidden");
+          strategiesListEl.innerHTML = "";
+          return;
+        }
+
+        strategiesEmptyEl.classList.add("hidden");
+        strategiesListEl.classList.remove("hidden");
+        strategiesListEl.innerHTML = "";
+
+        // ordenar por PnL desc
+        entries
+          .sort((a, b) => (b[1].pnl || 0) - (a[1].pnl || 0))
+          .forEach(([name, info]) => {
+            const pnl = info.pnl || 0;
+            const trades = info.trades || 0;
+            const avg = trades > 0 ? pnl / trades : 0;
+
+            const pnlColor =
+              pnl > 0
+                ? "text-emerald-400"
+                : pnl < 0
+                ? "text-rose-400"
+                : "text-slate-300";
+
+            const row = document.createElement("div");
+            row.className =
+              "flex items-center justify-between gap-3 bg-slate-950/60 border border-slate-800 rounded-xl px-3 py-2";
+
+            row.innerHTML = `
+              <div class="flex flex-col">
+                <span class="text-xs font-semibold text-slate-100">${name}</span>
+                <span class="text-[11px] text-slate-400">${trades} trade(s)</span>
+              </div>
+              <div class="text-right">
+                <p class="text-[11px] ${pnlColor}">
+                  PnL total: ${formatBRL(pnl)}
+                </p>
+                <p class="text-[10px] text-slate-500">
+                  Média por trade: ${formatBRL(avg)}
+                </p>
+              </div>
+            `;
+
+            strategiesListEl.appendChild(row);
+          });
+      }
+
+      async function fetchStatus() {
+        try {
+          const res = await fetch("/status");
+          const data = await res.json();
+          updateStatusUI(data);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      async function fetchHistory() {
+        try {
+          const res = await fetch("/history");
+          const data = await res.json();
+          renderHistory(data.trades || []);
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      async function startBot() {
+        try {
+          const rawTarget = targetInput ? targetInput.value : "";
+          const manualTarget = parseBRLInput(rawTarget);
+          const payload = {};
+
+          if (manualTarget !== null && manualTarget > 0) {
+            payload.daily_target_value = manualTarget;
+          }
+
+          await fetch("/start", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify(payload),
+          });
+
+          await fetchStatus();
+          await fetchHistory();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      async function stopBot() {
+        try {
+          await fetch("/stop", { method: "POST" });
+          await fetchStatus();
+        } catch (e) {
+          console.error(e);
+        }
+      }
+
+      startBtn.addEventListener("click", startBot);
+      stopBtn.addEventListener("click", stopBot);
+
+      // loop de atualização
+      fetchStatus();
+      fetchHistory();
+      setInterval(() => {
+        fetchStatus();
+        fetchHistory();
+      }, 5000);
+    </script>
+  </body>
+</html>
