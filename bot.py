@@ -25,7 +25,10 @@ class TradingBot:
 
         self.is_running: bool = False
         self.last_equity: float | None = None
+
+        # 🔹 PnL exibido no painel (apenas operações fechadas)
         self.last_pnl: float | None = None
+        self.realized_pnl: float = 0.0  # acumulador de PnL realizado do dia
 
         # histórico das operações
         self.trades: list[dict] = []
@@ -63,6 +66,11 @@ class TradingBot:
         if len(self.trades) > 100:
             self.trades = self.trades[-100:]
 
+        # 🔹 soma PnL realizado do dia
+        if trade["closed_pnl"] is not None:
+            self.realized_pnl += trade["closed_pnl"]
+
+        # atualiza placar da estratégia
         self._register_strategy_pnl(strategy_name, trade["closed_pnl"])
 
     # ---------- loop principal ----------
@@ -70,6 +78,7 @@ class TradingBot:
     def start(self):
         print("[BOT] Iniciando robô em modo DEMO (paper trading).")
         equity = self.broker.get_balance()
+        self.realized_pnl = 0.0  # 🔹 zera PnL realizado ao iniciar
         self.risk_manager.reset_for_new_day(starting_equity=equity)
         self.is_running = True
         self.run_loop()
@@ -84,8 +93,11 @@ class TradingBot:
                 current_equity = self.broker.get_balance()
                 self.last_equity = current_equity
 
+                # 🔹 RiskManager continua usando PnL total (equity)
                 self.risk_manager.update_pnl(current_equity)
-                self.last_pnl = self.risk_manager.current_pnl
+
+                # 🔹 Mas o painel vai mostrar APENAS PnL realizado
+                self.last_pnl = self.realized_pnl
 
                 if not self.risk_manager.can_trade():
                     print("[BOT] Operações bloqueadas (meta/stop). Encerrando loop.")
