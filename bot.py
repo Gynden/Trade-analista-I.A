@@ -14,8 +14,7 @@ from config import (
     LOOP_SLEEP_SECONDS,
 )
 from broker_client import BrokerClient
-    # noqa
-from strategy import moving_average_crossover_strategy
+from strategy import choose_best_signal
 from risk_manager import RiskManager
 
 
@@ -31,7 +30,23 @@ class TradingBot:
         # histórico de operações
         self.trades: list[dict] = []
 
-    def _add_trade(self, order_result: dict):
+        # desempenho por estratégia
+        # { "nome": {"trades": int, "pnl": float} }
+        self.strategy_stats: dict[str, dict] = {}
+
+    # ---------- histórico / aprendizado ----------
+
+    def _register_strategy_pnl(self, strategy_name: str, closed_pnl: float | None):
+        if not strategy_name or strategy_name == "none" or closed_pnl is None:
+            return
+
+        stats = self.strategy_stats.setdefault(
+            strategy_name, {"trades": 0, "pnl": 0.0}
+        )
+        stats["trades"] += 1
+        stats["pnl"] += closed_pnl
+
+    def _add_trade(self, order_result: dict, strategy_name: str):
         if order_result.get("status") != "filled":
             return
 
@@ -42,12 +57,17 @@ class TradingBot:
             "qty": order_result.get("qty"),
             "price": order_result.get("price"),
             "closed_pnl": order_result.get("closed_pnl"),
+            "strategy": strategy_name,
         }
 
         self.trades.append(trade)
-        # guarda só as últimas 100 pra não crescer infinito
         if len(self.trades) > 100:
             self.trades = self.trades[-100:]
+
+        # atualiza placar da estratégia
+        self._register_strategy_pnl(strategy_name, trade["closed_pnl"])
+
+    # ---------- loop principal ----------
 
     def start(self):
         print("[BOT] Iniciando robô em modo DEMO (paper trading).")
@@ -75,22 +95,25 @@ class TradingBot:
                     break
 
                 candles = self.broker.get_historical_candles(
-                    SYMBOL, minutes=TIMEFRAME_MINUTES, limit=100
+                    SYMBOL, minutes=TIMEFRAME_MINUTES, limit=120
                 )
 
-                signal = moving_average_crossover_strategy(candles)
+                signal, strategy_name = choose_best_signal(
+                    candles, self.strategy_stats
+                )
                 last_price = self.broker.get_last_price(SYMBOL)
 
                 print(
-                    f"[{datetime.now().isoformat()}] Sinal: {signal} | Preço: {last_price:.2f}"
+                    f"[{datetime.now().isoformat()}] Estrat: {strategy_name} "
+                    f"| Sinal: {signal} | Preço: {last_price:.2f}"
                 )
 
                 if signal == "BUY":
                     result = self.broker.market_buy(SYMBOL, POSITION_SIZE)
-                    self._add_trade(result)
+                    self._add_trade(result, strategy_name)
                 elif signal == "SELL":
                     result = self.broker.market_sell(SYMBOL, POSITION_SIZE)
-                    self._add_trade(result)
+                    self._add_trade(result, strategy_name)
 
             except Exception as e:
                 print(f"[ERRO] {e}")
