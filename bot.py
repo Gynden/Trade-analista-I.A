@@ -66,11 +66,11 @@ class TradingBot:
         if len(self.trades) > 100:
             self.trades = self.trades[-100:]
 
-        # 🔹 soma PnL realizado do dia
+        # soma PnL realizado do dia
         if trade["closed_pnl"] is not None:
             self.realized_pnl += trade["closed_pnl"]
 
-        # 🔹 atualiza imediatamente o PnL que vai pro painel
+        # atualiza imediatamente o PnL que vai pro painel
         self.last_pnl = self.realized_pnl
 
         # atualiza placar da estratégia
@@ -78,12 +78,21 @@ class TradingBot:
 
     # ---------- loop principal ----------
 
-    def start(self):
+    def start(self, manual_target: float | None = None):
+        """
+        Inicia o bot. Se manual_target vier preenchido, usa esse valor como meta do dia.
+        """
         print("[BOT] Iniciando robô em modo DEMO (paper trading).")
         equity = self.broker.get_balance()
-        self.realized_pnl = 0.0  # zera PnL realizado ao iniciar
+        self.realized_pnl = 0.0
         self.last_pnl = 0.0
-        self.risk_manager.reset_for_new_day(starting_equity=equity)
+
+        # passa meta manual (se tiver) para o risk manager
+        self.risk_manager.reset_for_new_day(
+            starting_equity=equity,
+            manual_target=manual_target,
+        )
+
         self.is_running = True
         self.run_loop()
 
@@ -100,8 +109,7 @@ class TradingBot:
                 # RiskManager continua usando PnL total (equity)
                 self.risk_manager.update_pnl(current_equity)
 
-                # last_pnl já é atualizado em _add_trade,
-                # aqui só garantimos que não fique None
+                # garante que last_pnl nunca fique None
                 if self.last_pnl is None:
                     self.last_pnl = self.realized_pnl
 
