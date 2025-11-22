@@ -23,15 +23,14 @@ class BrokerClient:
         self.api_key = api_key
         self.api_secret = api_secret
 
-        # Estado interno do "cliente"
         self._cash_balance = 10_000.0     # saldo inicial fictício
         self._price = 100.0               # preço inicial fictício
         self._position: Position | None = None
 
-    # --------- Funções de estado ---------
+    # --------- Estado / preços ---------
 
     def _update_price(self):
-        """Atualiza o preço com um 'random walk' simples."""
+        """Random walk simples."""
         move = random.uniform(-1.0, 1.0)
         self._price = max(1.0, self._price + move)
 
@@ -46,23 +45,17 @@ class BrokerClient:
         return 0.0
 
     def get_balance(self) -> float:
-        """
-        Retorna o 'equity' total (caixa + PnL não realizado).
-        """
+        """Equity = caixa + PnL não realizado."""
         self._update_price()
         return self._cash_balance + self._unrealized_pnl()
 
     def get_last_price(self, symbol: str) -> float:
-        """
-        Último preço do ativo (simulado).
-        """
         self._update_price()
         return self._price
 
     def get_historical_candles(self, symbol: str, minutes: int, limit: int = 100):
         """
-        Gera candles sintéticos para a estratégia.
-        Cada candle tem: time, open, high, low, close.
+        Gera candles sintéticos: time, open, high, low, close.
         """
         candles = []
         now = datetime.utcnow()
@@ -91,22 +84,19 @@ class BrokerClient:
         self._price = price
         return candles
 
-    # --------- Execução de ordens ---------
+    # --------- Ordens ---------
 
     def _close_position_if_exists(self):
         """
-        Fecha posição atual, se existir, realizando o PnL.
-        Retorna o PnL realizado ou None.
+        Fecha posição atual, se existir. Retorna PnL realizado ou None.
         """
         if not self._position:
             return None
 
         price = self._price
-        pnl = 0.0
-
         if self._position.side == "LONG":
             pnl = (price - self._position.entry_price) * self._position.qty
-        elif self._position.side == "SHORT":
+        else:  # SHORT
             pnl = (self._position.entry_price - price) * self._position.qty
 
         self._cash_balance += pnl
@@ -121,10 +111,6 @@ class BrokerClient:
         return pnl
 
     def market_buy(self, symbol: str, qty: float) -> dict:
-        """
-        Simula uma ordem de compra a mercado.
-        Fecha qualquer posição aberta antes de abrir uma nova.
-        """
         self._update_price()
         price = self._price
 
@@ -150,10 +136,6 @@ class BrokerClient:
         }
 
     def market_sell(self, symbol: str, qty: float) -> dict:
-        """
-        Simula uma ordem de venda a mercado.
-        Fecha qualquer posição aberta antes de abrir uma nova.
-        """
         self._update_price()
         price = self._price
 
