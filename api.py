@@ -5,6 +5,7 @@ from threading import Thread
 
 from fastapi import FastAPI
 from fastapi.responses import HTMLResponse, JSONResponse
+from pydantic import BaseModel
 
 from bot import TradingBot
 
@@ -12,6 +13,10 @@ app = FastAPI(title="Trade Analista IA - Bot Demo")
 
 bot = TradingBot()
 bot_thread: Thread | None = None
+
+
+class StartRequest(BaseModel):
+    daily_target_value: float | None = None
 
 
 # ---------- FRONTEND ----------
@@ -58,19 +63,26 @@ def brain():
 
 
 @app.post("/start")
-def start_bot():
+def start_bot(payload: StartRequest | None = None):
+    """
+    Inicia o bot. Se daily_target_value vier preenchido, usa como meta do dia.
+    """
     global bot_thread
 
     if bot.is_running:
         return {"status": "already_running"}
 
+    manual_target = None
+    if payload and payload.daily_target_value and payload.daily_target_value > 0:
+        manual_target = payload.daily_target_value
+
     def run():
-        bot.start()
+        bot.start(manual_target=manual_target)
 
     bot_thread = Thread(target=run, daemon=True)
     bot_thread.start()
 
-    return {"status": "started"}
+    return {"status": "started", "manual_target": manual_target}
 
 
 @app.post("/stop")
