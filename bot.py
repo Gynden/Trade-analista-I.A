@@ -27,14 +27,13 @@ class TradingBot:
         self.last_equity: float | None = None
         self.last_pnl: float | None = None
 
-        # histórico de operações
+        # histórico das operações
         self.trades: list[dict] = []
 
-        # desempenho por estratégia
-        # { "nome": {"trades": int, "pnl": float} }
+        # desempenho por estratégia: {nome: {"trades": int, "pnl": float}}
         self.strategy_stats: dict[str, dict] = {}
 
-    # ---------- histórico / aprendizado ----------
+    # ---------- aprendizado / histórico ----------
 
     def _register_strategy_pnl(self, strategy_name: str, closed_pnl: float | None):
         if not strategy_name or strategy_name == "none" or closed_pnl is None:
@@ -64,7 +63,6 @@ class TradingBot:
         if len(self.trades) > 100:
             self.trades = self.trades[-100:]
 
-        # atualiza placar da estratégia
         self._register_strategy_pnl(strategy_name, trade["closed_pnl"])
 
     # ---------- loop principal ----------
