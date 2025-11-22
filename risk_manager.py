@@ -5,7 +5,7 @@ from datetime import date
 
 class RiskManager:
     """
-    Faz o controle de risco diário com base em % da banca inicial do dia.
+    Controle de risco diário baseado em % da banca inicial.
     """
 
     def __init__(self, target_pct: float, stop_pct: float):
@@ -23,7 +23,7 @@ class RiskManager:
         self.current_day = date.today()
         self.starting_equity = starting_equity
 
-        # Calcula meta e stop em valor
+        # meta e stop em valor
         self.daily_target = self.starting_equity * self.target_pct
         self.daily_stop_loss = -self.starting_equity * self.stop_pct
 
@@ -37,7 +37,6 @@ class RiskManager:
 
     def update_pnl(self, current_equity: float):
         if self.starting_equity is None:
-            # se for a primeira chamada, inicializa
             self.reset_for_new_day(current_equity)
 
         self.current_pnl = current_equity - self.starting_equity
@@ -54,7 +53,7 @@ class RiskManager:
             print(f"[RISK] ⛔ Stop loss diário atingido ({self.current_pnl:.2f}).")
 
     def can_trade(self) -> bool:
-        # Se virou o dia, reseta em cima da equity final de ontem
+        # Se virou o dia, reseta com equity do fim do dia anterior
         if date.today() != self.current_day and self.starting_equity is not None:
             print("[RISK] Mudança de dia detectada, resetando controles.")
             self.reset_for_new_day(self.starting_equity + self.current_pnl)
