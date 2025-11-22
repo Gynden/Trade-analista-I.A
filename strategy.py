@@ -2,7 +2,7 @@
 
 import numpy as np
 
-# ---------- Indicadores básicos ----------
+# ---------- Indicadores ----------
 
 
 def rsi(closes: np.ndarray, period: int = 14) -> float:
@@ -20,15 +20,12 @@ def rsi(closes: np.ndarray, period: int = 14) -> float:
     return 100.0 - (100.0 / (1.0 + rs))
 
 
-# ---------- Estratégias individuais ----------
+# ---------- Estratégias ----------
 
 
 def strategy_ma_trend(candles) -> str:
-    """
-    Estratégia de tendência: cruzamento de médias.
-    """
+    """Tendência: cruzamento de médias."""
     closes = np.array([c["close"] for c in candles])
-
     if len(closes) < 50:
         return "HOLD"
 
@@ -43,29 +40,22 @@ def strategy_ma_trend(candles) -> str:
 
 
 def strategy_rsi_reversion(candles) -> str:
-    """
-    Estratégia de reversão: RSI sobrecomprado/sobrevendido.
-    """
+    """Reversão: RSI sobrecomprado/sobrevendido."""
     closes = np.array([c["close"] for c in candles])
-
     if len(closes) < 20:
         return "HOLD"
 
     value = rsi(closes, period=14)
-
     if value < 30:
-        return "BUY"   # muito vendido, aposta na volta
+        return "BUY"
     elif value > 70:
-        return "SELL"  # muito comprado, aposta na correção
+        return "SELL"
     return "HOLD"
 
 
 def strategy_breakout(candles) -> str:
-    """
-    Estratégia de rompimento: rompe máxima/mínima recente.
-    """
+    """Breakout: rompimento de máxima/mínima recente."""
     closes = np.array([c["close"] for c in candles])
-
     if len(closes) < 40:
         return "HOLD"
 
@@ -77,14 +67,10 @@ def strategy_breakout(candles) -> str:
     prev_high = prev.max()
     prev_low = prev.min()
 
-    # Rompimento da máxima anterior
     if recent_high > prev_high * 1.002:
         return "BUY"
-
-    # Rompimento da mínima anterior
     if recent_low < prev_low * 0.998:
         return "SELL"
-
     return "HOLD"
 
 
@@ -93,8 +79,7 @@ def strategy_breakout(candles) -> str:
 
 def choose_best_signal(candles, strategy_stats: dict) -> tuple[str, str]:
     """
-    Calcula sinal de várias estratégias e escolhe a melhor com base no PnL acumulado.
-
+    Calcula sinal de várias estratégias e escolhe a que está performando melhor.
     Retorna: (signal, strategy_name)
     """
     strategies = {
@@ -112,7 +97,7 @@ def choose_best_signal(candles, strategy_stats: dict) -> tuple[str, str]:
 
         stats = strategy_stats.get(name, {"pnl": 0.0, "trades": 0})
         base_score = 1.0
-        pnl_boost = max(0.0, stats["pnl"]) / 50.0  # aumenta o peso se pnl > 0
+        pnl_boost = max(0.0, stats["pnl"]) / 50.0  # mais peso se pnl > 0
         score = base_score + pnl_boost
 
         votes.append((signal, score, name))
@@ -120,6 +105,5 @@ def choose_best_signal(candles, strategy_stats: dict) -> tuple[str, str]:
     if not votes:
         return "HOLD", "none"
 
-    # pega a estratégia com maior "score"
     best_signal, _, best_name = max(votes, key=lambda x: x[1])
     return best_signal, best_name
