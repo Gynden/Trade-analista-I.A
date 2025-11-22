@@ -9,7 +9,9 @@
   <body class="min-h-screen bg-slate-950 text-slate-50">
     <div class="max-w-6xl mx-auto px-4 py-8">
       <!-- TOPO -->
-      <header class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8">
+      <header
+        class="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-8"
+      >
         <div class="flex items-center gap-3">
           <div
             class="w-10 h-10 rounded-2xl bg-gradient-to-tr from-emerald-400 to-cyan-500 flex items-center justify-center"
@@ -96,7 +98,7 @@
         </div>
 
         <div id="history-list" class="space-y-2 hidden max-h-80 overflow-y-auto">
-          <!-- linhas geradas via JS -->
+          <!-- linhas via JS -->
         </div>
       </section>
     </div>
@@ -115,10 +117,10 @@
       const startBtn = document.getElementById("start-btn");
       const stopBtn = document.getElementById("stop-btn");
 
-      // imagens simples por símbolo
+      // imagem por ativo
       const assetImages = {
         BTCUSDT:
-          "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=026", // bitcoin
+          "https://cryptologos.cc/logos/bitcoin-btc-logo.png?v=026",
       };
 
       function formatBRL(value) {
@@ -202,17 +204,22 @@
                 ? "bg-emerald-500/10 text-emerald-300 border-emerald-400/40"
                 : "bg-rose-500/10 text-rose-300 border-rose-400/40";
 
-            const pnlText =
-              t.closed_pnl != null
-                ? formatBRL(t.closed_pnl)
-                : "—";
+            const pnlValue = t.closed_pnl ?? 0;
+            const pnlText = formatBRL(Math.abs(pnlValue));
+            const isWin = pnlValue > 0;
+            const isLoss = pnlValue < 0;
 
-            const pnlColor =
-              t.closed_pnl > 0
-                ? "text-emerald-400"
-                : t.closed_pnl < 0
-                ? "text-rose-400"
-                : "text-slate-400";
+            const pnlLabel = isWin
+              ? "Lucro"
+              : isLoss
+              ? "Prejuízo"
+              : "Resultado";
+
+            const pnlColor = isWin
+              ? "text-emerald-400"
+              : isLoss
+              ? "text-rose-400"
+              : "text-slate-400";
 
             const row = document.createElement("div");
             row.className =
@@ -229,6 +236,13 @@
                     <span class="px-2 py-0.5 rounded-full text-[10px] border ${sideBadgeClass}">
                       ${t.side === "BUY" ? "COMPRA" : "VENDA"}
                     </span>
+                    ${
+                      t.strategy
+                        ? `<span class="px-2 py-0.5 rounded-full text-[10px] bg-sky-500/10 text-sky-300 border border-sky-400/40">
+                             ${t.strategy}
+                           </span>`
+                        : ""
+                    }
                   </div>
                   <p class="text-[11px] text-slate-400">
                     Qty: <span class="font-medium text-slate-200">${t.qty}</span> ·
@@ -243,7 +257,7 @@
                   ${t.time ? new Date(t.time).toLocaleTimeString("pt-BR") : ""}
                 </p>
                 <p class="text-[11px] ${pnlColor}">
-                  PnL fechado: ${pnlText}
+                  ${pnlLabel}: ${pnlText}
                 </p>
               </div>
             `;
@@ -294,7 +308,7 @@
       startBtn.addEventListener("click", startBot);
       stopBtn.addEventListener("click", stopBot);
 
-      // loop de atualização
+      // atualização periódica
       fetchStatus();
       fetchHistory();
       setInterval(() => {
